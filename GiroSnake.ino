@@ -17,7 +17,8 @@ float pixX =20, pixY=20;
 int ch = 0;
 int lastMov = 4;
 int puntos = 9;
-bool fin = false, inicio = true;
+bool fin = false, inicio = true, once = true, punt = true;
+ 
 
 class SQsnake{
   public: 
@@ -47,8 +48,12 @@ class Fruta: public SQsnake{
   Fruta(int posX, int posY):SQsnake(posX, posY){}
 
   void Fruta::Draw(){
-    tft.drawRect(posX, posY, 2, 2, ST77XX_BLACK);
+    tft.fillRect(posX, posY, 4, 4, ST77XX_BLACK);
   } 
+
+  void Fruta::Destroy(int posX, int posY){
+    tft.fillRect(posX, posY, 4, 4, ST77XX_WHITE);
+  }
   
 };
 
@@ -56,23 +61,28 @@ List<int> listaX;
 List<int> listaY;
 List<int> frutaX;
 List<int> frutaY;
+byte b = 120;
+int addr = 0;
+
 
 Fruta fruta(30, 30);
 void setup() {
   gyro.begin();
+  Wire.begin();
   tft.initR(INITR_BLACKTAB);
   tft.setTextColor(ST77XX_BLACK);
   tft.setTextSize(2);
   tft.fillScreen(ST77XX_WHITE);
   tft.setCursor(0, 140);
   tft.print(" puntos: ");
-  tft.print(puntos);
+  tft.print(puntos/3);
   Serial.begin(9600);
-  
+  tft.fillRect(1,1,4,4,ST77XX_BLACK);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
+  
   if(!fin){
 
   if(inicio){    
@@ -96,25 +106,24 @@ void loop() {
   }
 
   for(int i = 0; i < frutaX.Count(); i++){
-    if(pixX == frutaX[i] && pixY == frutaY[i] || pixX == frutaX[i]+1 && pixY == frutaY[i]-1){
-
+    if(pixX >= frutaX[0]-1 && pixX <= frutaX[0]+3 && pixY >= frutaY[0]-1 && pixY <= frutaY[0]+ 3){
         puntos += 3;
         frutaX.RemoveFirst();
         frutaY.RemoveFirst();
-        tft.drawRect(fruta.posX, fruta.posY, 2, 2, ST77XX_WHITE);
+        fruta.Destroy(fruta.posX, fruta.posY);
         int tempx, tempy;
         tempx= random(0, 126);
         tempy = random(0, 130);        
         fruta.SetPos(tempx, tempy);
-        Serial.println(tempx + " " + tempy);
         fruta.Draw();
         frutaX.Add(tempx);
         frutaY.Add(tempy);
         tft.fillRect(100, 140, 30, 30, ST77XX_WHITE);
         tft.setCursor(100, 140);
-        tft.print(puntos);
-    }    
+        tft.print(puntos/3);
   }
+  }    
+  
   
   SQsnake snake((int)pixX, (int)pixY);
   
@@ -126,9 +135,34 @@ void loop() {
     listaY.RemoveFirst();
   }
   snake.Draw();
-  delay(100);
+  delay(50);
+  }
+  if(fin){    
+      if(once){
+        tft.fillScreen(ST77XX_WHITE);
+        tft.setTextSize(1);
+        tft.setCursor(0,0);
+        once = false;
+      }
+      if(punt){
+        b = i2c_eeprom_read_byte(0x50, addr); //access an address from the memory
+        if(b != 255){
+          tft.println(b);
+        }else{
+          i2c_eeprom_write_byte(0x50, addr, (byte)(puntos/3));
+          delay(500);
+           b = i2c_eeprom_read_byte(0x50, addr); //access an address from the memory
+          tft.println(b);
+           punt = false;
+        }
+        addr++; //increase address
+        
+        delay(500);
+       
+      }
   }
 }
+  
 
 void Move(float x, float y){
   if(x > 2.5 && lastMov != 2){
@@ -174,4 +208,28 @@ void Move(float x, float y){
   }else if(pixY<0){
     pixY=130;
   }
+
+
+}
+
+
+void i2c_eeprom_write_byte( int deviceaddress, unsigned int eeaddress, byte data ) {
+    int rdata = data;
+    Wire.beginTransmission(deviceaddress);
+    Wire.write((int)(eeaddress >> 8)); // MSB
+    Wire.write((int)(eeaddress & 0xFF)); // LSB
+    Wire.write(rdata);
+    Wire.endTransmission();
+}
+
+
+byte i2c_eeprom_read_byte( int deviceaddress, unsigned int eeaddress ) {
+    byte rdata = 0xFF;
+    Wire.beginTransmission(deviceaddress);
+    Wire.write((int)(eeaddress >> 8)); // MSB
+    Wire.write((int)(eeaddress & 0xFF)); // LSB
+    Wire.endTransmission();
+    Wire.requestFrom(deviceaddress,1);
+    if (Wire.available()) rdata = Wire.read();
+    return rdata;
 }
