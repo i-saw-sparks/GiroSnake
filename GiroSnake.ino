@@ -63,7 +63,7 @@ List<int> frutaX;
 List<int> frutaY;
 byte b = 120;
 int addr = 0;
-
+int puntuacion[6];
 
 Fruta fruta(30, 30);
 void setup() {
@@ -76,8 +76,6 @@ void setup() {
   tft.setCursor(0, 140);
   tft.print(" puntos: ");
   tft.print(puntos/3);
-  Serial.begin(9600);
-  tft.fillRect(1,1,4,4,ST77XX_BLACK);
 }
 
 void loop() {
@@ -140,26 +138,46 @@ void loop() {
   if(fin){    
       if(once){
         tft.fillScreen(ST77XX_WHITE);
-        tft.setTextSize(1);
-        tft.setCursor(0,0);
-        once = false;
-      }
-      if(punt){
-        b = i2c_eeprom_read_byte(0x50, addr); //access an address from the memory
-        if(b != 255){
-          tft.println(b);
-        }else{
-          i2c_eeprom_write_byte(0x50, addr, (byte)(puntos/3));
-          delay(500);
-           b = i2c_eeprom_read_byte(0x50, addr); //access an address from the memory
-          tft.println(b);
-           punt = false;
-        }
-        addr++; //increase address
+        tft.setCursor(6,0);
         
-        delay(500);
-       
+        tft.println("Ganadores");
+        tft.setCursor(50,15);
+        
+        once = false;
+        i2c_eeprom_write_byte(0x50, 0x05, (byte)(puntos/3));
+        delay(100);
       }
+
+      for(int i = 0; i<6; i++){
+        puntuacion[i] = i2c_eeprom_read_byte(0x50, i);
+        delay(100);
+      }
+
+      for(int i = 0; i<6; i++){
+        for(int j=0; j<6; j++){
+          if(puntuacion[i]>puntuacion[j]){
+            int temp = puntuacion[j];
+            puntuacion[j]= puntuacion[i];
+            puntuacion[i]= temp;
+          }
+        }
+      }
+      int y = 30;
+      for(int i = 0; i<5; i++){
+        if(puntuacion[i]==puntos/3){
+          tft.setTextColor(ST77XX_RED);
+        }else{
+          tft.setTextColor(ST77XX_BLACK);
+        }
+        tft.setCursor(50,y);
+        y+=15;
+        tft.println(puntuacion[i]);
+        i2c_eeprom_write_byte(0x50, i, (byte)puntuacion[i]);
+        delay(100);
+      }
+
+      
+      while(true);
   }
 }
   
